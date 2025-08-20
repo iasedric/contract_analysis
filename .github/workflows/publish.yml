@@ -28,7 +28,7 @@ jobs:
         pip install build
 
     - name: Run tests
-      run: pytest tests/
+      run: PYTHONPATH=src python -m unittest discover -s tests -p "test_*.py"
 
     - name: Build package
       run: python -m build
