@@ -1,0 +1,29 @@
+[project]
+name = "contract-analysis"
+version = "0.1.0"
+description = "A Python library for analyzing legal contracts using Azure services."
+authors = [
+    { name = "Iaroslav Sedrichev", email = "iasedric@microsoft.com" }
+]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "azure-ai-formrecognizer",
+    "azure-core",
+    "azure-identity",
+    "requests",
+    "openai",
+    "pywin32"
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["contract_analysis_iasedric"]
