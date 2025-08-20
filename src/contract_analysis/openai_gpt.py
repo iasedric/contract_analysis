@@ -1,4 +1,3 @@
-
 from azure.identity import get_bearer_token_provider
 from openai import AzureOpenAI
 from typing import Callable, Union, List, Dict
@@ -23,6 +22,14 @@ class OpenAIGPT:
     ):
         """
         Initialize the GPT client with a prompt registry and a custom Azure credential.
+
+        Args:
+            prompt_registry (PromptRegistry): Dictionary of prompts or prompt providers.
+            gpt_credential: Azure credential object.
+            api_version (str): API version for Azure OpenAI.
+            azure_endpoint (str): Endpoint for Azure OpenAI.
+            model (str): Deployment name of the GPT model.
+            token_scope (str): Scope for Azure AD token.
         """
         self.gpt_credential = gpt_credential
         self.prompt_registry = prompt_registry
@@ -36,13 +43,42 @@ class OpenAIGPT:
         self.model = model
 
     def _split_text(self, text: str, chunk_size: int) -> List[str]:
+        """
+        Splits text into chunks based on page markers.
+
+        Args:
+            text (str): Input text.
+            chunk_size (int): Number of pages per chunk.
+
+        Returns:
+            List[str]: List of text chunks.
+        """
         pages = text.split("-- PAGE")
         return [f"-- PAGE{''.join(pages[i:i+chunk_size])}" for i in range(0, len(pages), chunk_size)]
 
     def _clean_text(self, text: str) -> str:
+        """
+        Cleans text by removing page markers and metadata.
+
+        Args:
+            text (str): Input text.
+
+        Returns:
+            str: Cleaned text.
+        """
         return re.sub(r'--.*?--', '', text, flags=re.DOTALL)
 
     def _run_api(self, system_prompt: str, user_prompt: str) -> str:
+        """
+        Executes a chat completion request with retry logic.
+
+        Args:
+            system_prompt (str): System-level prompt.
+            user_prompt (str): User-level prompt.
+
+        Returns:
+            str: Response from the GPT model.
+        """
         for attempt in range(5):
             try:
                 response = self.client.chat.completions.create(
@@ -62,6 +98,20 @@ class OpenAIGPT:
         return "Error: OpenAI API failed after retries."
 
     def run_prompt(self, prompt_key: str, text: str, clean: bool = False) -> List[str]:
+        """
+        Runs a prompt from the registry against the input text.
+
+        Args:
+            prompt_key (str): Key to retrieve the prompt.
+            text (str): Input text.
+            clean (bool): Whether to clean the text before processing.
+
+        Returns:
+            List[str]: List of GPT responses.
+
+        Raises:
+            ValueError: If the prompt key is not found.
+        """
         if prompt_key not in self.prompt_registry:
             raise ValueError(f"Prompt '{prompt_key}' not found in registry.")
         prompt = self.prompt_registry[prompt_key]
@@ -70,6 +120,17 @@ class OpenAIGPT:
         return self.run(text, prompt, clean=clean)
 
     def run(self, text: str, prompt: str, clean: bool = False) -> List[str]:
+        """
+        Runs the GPT model on the input text with fallback chunking.
+
+        Args:
+            text (str): Input text.
+            prompt (str): Prompt to use.
+            clean (bool): Whether to clean the text before processing.
+
+        Returns:
+            List[str]: List of GPT responses.
+        """
         if clean:
             text = self._clean_text(text)
 

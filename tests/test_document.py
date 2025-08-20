@@ -4,7 +4,6 @@ from pathlib import Path
 from contract_analysis import Document
 
 class TestDocument(unittest.TestCase):
-
     def setUp(self):
         self.sample_docx = Path("contracts/samples/sample.docx")
         self.sample_pdf = Path("contracts/samples/sample.pdf")
@@ -61,4 +60,3 @@ class TestDocument(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

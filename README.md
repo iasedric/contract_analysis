@@ -18,7 +18,7 @@ A Python library for analyzing legal contracts using Azure services:
 ## Installation
 
 ```bash
-pip install contract-analysis-lib
+pip install contract-analysis
 ```
 
 ## Usage
@@ -29,35 +29,52 @@ from contract_analysis import ContractAnalysis
 
 analyzer = ContractAnalysis(
     document_path="<full-document-path>",
-    target_language="<target-language>", # en, fr, ..
+    target_language="<target-language>",  # e.g., 'en', 'fr'
     translator_endpoint="<your-translator-endpoint>",
-    translator_region="<your-region>", #eastus, ..
+    translator_region="<your-region>",  # e.g., 'eastus'
+
+    # Optional: Content Understanding
     cu_endpoint="<your-cu-endpoint>",
     cu_api_version="<your-cu-api-version>",
     cu_subscription_key="<your-subscription-key>",
     cu_token_provider="<your-token-provider>",
     cu_analyzer_id="<your-analyzer-id>",
+
+    # Optional: Document Intelligence
     di_endpoint="<your-di-endpoint>",
     di_model_id="<your-model-id>",
+    di_fields_list=["PartyA", "PartyB", "EffectiveDate"],
+
+    # Optional: GPT Integration
     gpt_api_version="<gpt-api-version>",
     gpt_endpoint="<gpt-endpoint>",
-    di_fields_list=["PartyA", "PartyB", "EffectiveDate"]
-    prompt_registry = {
-        "PromtName1": lambda: """
+    gpt_model="<gpt-deployment-name>",
+    prompt_registry={
+        "PromptName1": lambda: """
         [FULL PROMPT TEXT HERE]
         """,
-        "PromtName2": lambda: """
+        "PromptName2": lambda: """
         [FULL PROMPT TEXT HERE]
         """
     }
 )
 
+
+```
+
+
+## Running Tests
+To run the test suite:
+
+```bash
+python -m unittest discover -s tests -p "test_*.py"
 ```
 
 ## Project Structure
 
 
-contract-analysis-lib/
+```bash
+contract-analysis/
 ├── src/
 │   └── contract_analysis/
 │       ├── __init__.py
@@ -80,12 +97,12 @@ contract-analysis-lib/
 ├── configuration/
 │   └── config.yaml  # excluded from version control
 ├── contracts/
-│   └── sample files
+│   └── sample files  # excluded from version control
 ├── README.md
 ├── pyproject.toml
 ├── LICENSE
 └── .gitignore
-
+```
 
 
 ## License

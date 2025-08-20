@@ -13,6 +13,13 @@ class Translation:
                  translator_region: str, target_language: str, document: Document):
         """
         Initializes the Translation service with Azure credentials and configuration.
+
+        Args:
+            credential (TokenCredential): Azure credential for authentication.
+            translator_endpoint (str): Endpoint for Azure Translator.
+            translator_region (str): Azure region for Translator.
+            target_language (str): Target language for translation.
+            document (Document): Document object to be translated.
         """
         self.credential = credential
         self.translator_endpoint = translator_endpoint.rstrip("/")
@@ -40,11 +47,19 @@ class Translation:
     def translate_text(self, text: str = None, action: TranslationAction = TranslationAction.TRANSLATE) -> str:
         """
         Translates or detects the language of the given text using Azure Translator.
+
+        Args:
+            text (str): Text to be translated or detected.
+            action (TranslationAction): Action to perform (TRANSLATE or DETECT).
+
+        Returns:
+            str: Translated text or detected language.
+
+        Raises:
+            RuntimeError: If the API request fails or response format is unexpected.
         """
         if action == TranslationAction.DETECT:
             full_text = self.document.extract_text()
-            
-            # Use only the first 1000 characters for detection
             text = full_text[:1000].strip()
 
             if not text or all(ord(c) in list(range(0x00, 0x20)) + [0x7F] for c in text):
@@ -96,7 +111,7 @@ class Translation:
 
     def check_language_and_translate_if_needed(self):
         """
-        Detects the document language and translates it if it differs from tpip install -e .he target language.
+        Detects the document language and translates it if it differs from the target language.
         """
         detected_language = self.translate_text(action=TranslationAction.DETECT)
         if detected_language != self.target_language:

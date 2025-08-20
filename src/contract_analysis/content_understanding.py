@@ -1,4 +1,3 @@
-
 import logging
 import time
 from collections.abc import Callable
@@ -15,8 +14,6 @@ class Settings:
     api_version: str
     subscription_key: str | None = None
     aad_token: str | None = None
-    # analyzer_id: str
-    # file_location: str
 
     def __post_init__(self):
         key_not_provided = (
@@ -34,6 +31,12 @@ class Settings:
 
     @property
     def token_provider(self) -> Callable[[], str] | None:
+        """
+        Returns a callable that provides the AAD token if available.
+
+        Returns:
+            Callable[[], str] | None: A function returning the AAD token or None.
+        """
         aad_token = self.aad_token
         if aad_token is None:
             return None
@@ -51,6 +54,17 @@ class ContentUnderstanding:
         analyzer_id: str | None = None,
         x_ms_useragent: str = "cu-sample-code",
     ) -> None:
+        """
+        Initializes the ContentUnderstanding client with required credentials and configuration.
+
+        Args:
+            endpoint (str): The base URL of the Content Understanding service.
+            api_version (str): The API version to use.
+            subscription_key (str, optional): The subscription key for authentication.
+            token_provider (Callable, optional): A callable that returns an AAD token.
+            analyzer_id (str, optional): The ID of the analyzer to use.
+            x_ms_useragent (str): Custom user agent string for tracking.
+        """
         if not subscription_key and token_provider is None:
             raise ValueError(
                 "Either subscription key or token provider must be provided"
@@ -72,18 +86,17 @@ class ContentUnderstanding:
 
     def begin_analyze(self):
         """
-        Begins the analysis of a file or URL using the specified analyzer.
+        Initiates an analysis request using either a local file or a URL.
 
-        Args:
-            analyzer_id (str): The ID of the analyzer to use.
-            file_location (str): The path to the file or the URL to analyze.
+        Determines the content type based on the file location and sends a POST request
+        to the Content Understanding service.
 
         Returns:
-            Response: The response from the analysis request.
+            Response: The HTTP response from the service.
 
         Raises:
-            ValueError: If the file location is not a valid path or URL.
-            HTTPError: If the HTTP request returned an unsuccessful status code.
+            ValueError: If the file location is invalid.
+            HTTPError: If the request fails.
         """
         if Path(self.file_location).exists():
             with open(self.file_location, "rb") as file:
@@ -124,22 +137,25 @@ class ContentUnderstanding:
         response: requests.Response,
         timeout_seconds: int = 120,
         polling_interval_seconds: int = 2,
-    ) -> dict[str, Any]:  # pyright: ignore[reportExplicitAny]
+    ) -> dict[str, Any]:
         """
-        Polls the result of an asynchronous operation until it completes or times out.
+        Polls the operation result until it completes or times out.
+
+        Continuously checks the status of the asynchronous operation using the
+        operation-location header from the initial response.
 
         Args:
-            response (Response): The initial response object containing the operation location.
-            timeout_seconds (int, optional): The maximum number of seconds to wait for the operation to complete. Defaults to 120.
-            polling_interval_seconds (int, optional): The number of seconds to wait between polling attempts. Defaults to 2.
-
-        Raises:
-            ValueError: If the operation location is not found in the response headers.
-            TimeoutError: If the operation does not complete within the specified timeout.
-            RuntimeError: If the operation fails.
+            response (Response): Initial response containing operation-location.
+            timeout_seconds (int): Max time to wait for completion.
+            polling_interval_seconds (int): Time between polling attempts.
 
         Returns:
-            dict: The JSON response of the completed operation if it succeeds.
+            dict: Final result of the operation.
+
+        Raises:
+            ValueError: If operation-location is missing.
+            TimeoutError: If operation exceeds timeout.
+            RuntimeError: If operation fails.
         """
         operation_location = response.headers.get("operation-location", "")
         if not operation_location:
@@ -167,7 +183,7 @@ class ContentUnderstanding:
                 self._logger.info(
                     f"Request result is ready after {elapsed_time:.2f} seconds."
                 )
-                return response.json()  # pyright: ignore[reportAny]
+                return response.json()
             elif status == "failed":
                 self._logger.error(f"Request failed. Reason: {response.json()}")
                 raise RuntimeError("Request failed.")
@@ -178,18 +194,32 @@ class ContentUnderstanding:
             time.sleep(polling_interval_seconds)
 
     def _get_analyze_url(self, endpoint: str, api_version: str, analyzer_id: str):
+        """
+        Constructs the full URL for the analyze request.
+
+        Args:
+            endpoint (str): Base endpoint of the service.
+            api_version (str): API version to use.
+            analyzer_id (str): Analyzer ID.
+
+        Returns:
+            str: Fully constructed URL for the analyze request.
+        """
         return f"{endpoint}/contentunderstanding/analyzers/{analyzer_id}:analyze?api-version={api_version}&stringEncoding=utf16"
 
     def _get_headers(
         self, subscription_key: str | None, api_token: str | None, x_ms_useragent: str
     ) -> dict[str, str]:
-        """Returns the headers for the HTTP requests.
+        """
+        Builds the headers required for the HTTP requests.
+
         Args:
-            subscription_key (str): The subscription key for the service.
-            api_token (str): The API token for the service.
-            enable_face_identification (bool): A flag to enable face identification.
+            subscription_key (str, optional): Subscription key for authentication.
+            api_token (str, optional): AAD token for authentication.
+            x_ms_useragent (str): Custom user agent string.
+
         Returns:
-            dict: A dictionary containing the headers for the HTTP requests.
+            dict: Dictionary of HTTP headers.
         """
         headers = (
             {"Ocp-Apim-Subscription-Key": subscription_key}
@@ -198,4 +228,3 @@ class ContentUnderstanding:
         )
         headers["x-ms-useragent"] = x_ms_useragent
         return headers
-

@@ -1,3 +1,4 @@
+# Import necessary modules for testing and mocking
 import unittest
 from unittest.mock import patch, MagicMock, mock_open
 from azure.core.credentials import AzureKeyCredential
@@ -6,21 +7,26 @@ from contract_analysis import DocumentIntelligence
 # Load configuration from a YAML file
 import yaml
 
+# Read configuration values from the YAML file
 with open("configuration/config.yaml", "r") as f:
     config = yaml.safe_load(f)
 
+# Extract specific configuration parameters for DocumentIntelligence
 document_intelligence_endpoint = config["document_intelligence"]["endpoint"]
 document_intelligence_model_id = config["document_intelligence"]["model_id"]
 prebuilt_layout_model_id = "prebuilt-layout"  # Explicitly define layout model ID
 
+# Define the test case class for DocumentIntelligence
 class TestDocumentIntelligence(unittest.TestCase):
 
+    # Setup method to initialize the DocumentIntelligence instance with mock configuration
     def setUp(self):
         self.mock_credential = MagicMock(spec=AzureKeyCredential)
         self.mock_endpoint = document_intelligence_endpoint
         self.mock_model_id = document_intelligence_model_id
         self.mock_pdf_path = "contracts/document.pdf"
 
+        # Create an instance of DocumentIntelligence with mock parameters
         self.di = DocumentIntelligence(
             credential=self.mock_credential,
             di_endpoint=self.mock_endpoint,
@@ -28,18 +34,21 @@ class TestDocumentIntelligence(unittest.TestCase):
             document_pdf_path=self.mock_pdf_path
         )
 
+    # Test initialization of field dictionaries with default values
     def test_init_field_dict(self):
         fields = ["Name", "Date"]
         self.di.init_field_dict(fields)
         self.assertEqual(self.di.field_dict, {"Name": None, "Date": None})
         self.assertEqual(self.di.field_confidence_dict, {"Name": 0.0, "Date": 0.0})
 
+    # Test initialization of the DocumentAnalysisClient
     @patch("contract_analysis.document_intelligence.DocumentAnalysisClient")
     def test_init_document_analysis_client(self, mock_client):
         self.di.init_document_analysis_client()
         mock_client.assert_called_with(endpoint=self.mock_endpoint, credential=self.mock_credential)
         self.assertIsNotNone(self.di.document_analysis_client)
 
+    # Test document layout analysis using mocked PDF content and client response
     @patch("builtins.open", new_callable=mock_open, read_data=b"pdf-content")
     def test_analyse_document_layout(self, mock_file):
         mock_client = MagicMock()
@@ -50,13 +59,16 @@ class TestDocumentIntelligence(unittest.TestCase):
         mock_page.lines = [mock_line]
         mock_result.pages = [mock_page]
 
+        # Simulate the behavior of the analysis client
         mock_client.begin_analyze_document.return_value.result.return_value = mock_result
         self.di.document_analysis_client = mock_client
 
+        # Call the method and verify expected behavior
         self.di.analyse_document_layout()
         mock_client.begin_analyze_document.assert_called_with(prebuilt_layout_model_id, b"pdf-content")
         self.assertEqual(self.di.document_layout_pages, ["Line 1"])
 
+    # Test field extraction from a document using mocked analysis result
     @patch("builtins.open", new_callable=mock_open, read_data=b"pdf-content")
     def test_extract_document_fields(self, mock_file):
         self.di.init_field_dict(["Field1"])
@@ -69,17 +81,18 @@ class TestDocumentIntelligence(unittest.TestCase):
         mock_field.content = "Content1"
         mock_field.confidence = 0.95
 
+        # Simulate the structure of the analysis result
         mock_doc.fields = {"Field1": mock_field}
         mock_result.documents = [mock_doc]
-
         mock_client.begin_analyze_document.return_value.result.return_value = mock_result
         self.di.document_analysis_client = mock_client
 
+        # Call the method and verify field extraction
         self.di.extract_document_fields()
         mock_client.begin_analyze_document.assert_called_with(self.mock_model_id, b"pdf-content")
         self.assertEqual(self.di.field_dict["Field1"], "Value1")
         self.assertEqual(self.di.field_confidence_dict["Field1"], 0.95)
 
+# Run the test suite
 if __name__ == "__main__":
     unittest.main()
-

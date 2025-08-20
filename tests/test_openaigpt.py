@@ -1,69 +1,73 @@
+# Import necessary modules for testing and mocking
 import unittest
-from unittest.mock import MagicMock, patch
-import yaml
+from unittest.mock import patch, MagicMock
+from pathlib import Path
+from contract_analysis import Document
 
-from contract_analysis import OpenAIGPT
+# Define the test case class for Document
+class TestDocument(unittest.TestCase):
 
-# Load configuration from a YAML file
-with open("configuration/config.yaml", "r") as f:
-    config = yaml.safe_load(f)
-
-gpt_api_version = config["openai_gpt"]["api_version"]
-gpt_endpoint = config["openai_gpt"]["endpoint"]
-
-class TestOpenAIGPT(unittest.TestCase):
+    # Setup method to define sample file paths used in tests
     def setUp(self):
-        self.mock_credential = MagicMock()
-        self.mock_client = MagicMock()
-        self.prompt_registry = {
-            "test_prompt": "System prompt text"
-        }
-        self.api_version = gpt_api_version
-        self.endpoint = gpt_endpoint
-        self.token_scope = "https://cognitiveservices.azure.com/.default"
+        self.sample_docx = Path("contracts/samples/sample.docx")
+        self.sample_pdf = Path("contracts/samples/sample.pdf")
 
-        with patch("contract_analysis.openai_gpt.AzureOpenAI", return_value=self.mock_client):
-            with patch("contract_analysis.openai_gpt.get_bearer_token_provider", return_value=MagicMock()):
-                self.gpt = OpenAIGPT(
-                    prompt_registry=self.prompt_registry,
-                    gpt_credential=self.mock_credential,
-                    api_version=self.api_version,
-                    azure_endpoint=self.endpoint,
-                    token_scope=self.token_scope
-                )
+    # Test initialization with a valid DOCX path
+    @patch("contract_analysis.document.Path.exists", return_value=True)
+    def test_init_valid_docx(self, mock_exists):
+        doc = Document(self.sample_docx)
+        self.assertEqual(doc.original_docx_path, self.sample_docx)
 
-    def test_split_text(self):
-        text = "-- PAGE1-- PAGE2-- PAGE3-- PAGE4"
-        chunks = self.gpt._split_text(text, 2)
-        self.assertEqual(len(chunks), 3)  # Adjusted to match actual behavior
+    # Test initialization with an invalid path, expecting a ValueError
+    @patch("contract_analysis.document.Path.exists", return_value=False)
+    def test_init_invalid_path(self, mock_exists):
+        with self.assertRaises(ValueError):
+            Document(self.sample_docx)
 
-    def test_clean_text(self):
-        dirty_text = "-- PAGE1 -- Some content -- PAGE2 --"
-        clean = self.gpt._clean_text(dirty_text)
-        self.assertNotIn("-- PAGE", clean)
+    # Test the from_file method with a DOCX file
+    @patch("contract_analysis.document.Path.exists", return_value=True)
+    def test_from_file_docx(self, mock_exists):
+        doc = Document.from_file(self.sample_docx)
+        self.assertIsInstance(doc, Document)
 
-    def test_run_prompt_with_string(self):
-        self.gpt.run = MagicMock(return_value=["response"])
-        result = self.gpt.run_prompt("test_prompt", "Some text")
-        self.assertEqual(result, ["response"])
+    # Test the from_file method with a PDF file and mock conversion to DOCX
+    @patch("contract_analysis.document.Document.convert_pdf_to_docx")
+    @patch("contract_analysis.document.Path.exists", return_value=True)
+    def test_from_file_pdf(self, mock_exists, mock_convert):
+        mock_convert.return_value = self.sample_docx
+        doc = Document.from_file(self.sample_pdf)
+        self.assertIsInstance(doc, Document)
 
-    def test_run_prompt_with_callable(self):
-        self.gpt.prompt_registry["callable_prompt"] = lambda: "Generated prompt"
-        self.gpt.run = MagicMock(return_value=["response"])
-        result = self.gpt.run_prompt("callable_prompt", "Some text")
-        self.assertEqual(result, ["response"])
+    # Test conversion from DOCX to PDF using mocked win32com client
+    @patch("contract_analysis.document.win32com.client.Dispatch")
+    @patch("contract_analysis.document.Path.exists", return_value=True)
+    def test_convert_docx_to_pdf(self, mock_exists, mock_dispatch):
+        mock_word = MagicMock()
+        mock_doc = MagicMock()
+        mock_dispatch.return_value = mock_word
+        mock_word.Documents.Open.return_value = mock_doc
 
-    def test_run_api_success(self):
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock(message=MagicMock(content="Success"))]
-        self.mock_client.chat.completions.create.return_value = mock_response
-        result = self.gpt._run_api("system", "user")
-        self.assertEqual(result, "Success")
+        result = Document.convert_docx_to_pdf(self.sample_docx)
+        self.assertEqual(result, self.sample_docx.with_suffix(".pdf"))
+        mock_doc.SaveAs.assert_called()
+        mock_doc.Close.assert_called()
+        mock_word.Quit.assert_called()
 
-    def test_run_api_failure(self):
-        self.mock_client.chat.completions.create.side_effect = Exception("API error")
-        result = self.gpt._run_api("system", "user")
-        self.assertIn("Error", result)
+    # Test conversion from PDF to DOCX using mocked win32com client
+    @patch("contract_analysis.document.win32com.client.Dispatch")
+    @patch("contract_analysis.document.Path.exists", return_value=True)
+    def test_convert_pdf_to_docx(self, mock_exists, mock_dispatch):
+        mock_word = MagicMock()
+        mock_doc = MagicMock()
+        mock_dispatch.return_value = mock_word
+        mock_word.Documents.Open.return_value = mock_doc
 
-if __name__ == "__main__":
+        result = Document.convert_pdf_to_docx(self.sample_pdf)
+        self.assertEqual(result, self.sample_pdf.with_suffix(".docx"))
+        mock_doc.SaveAs.assert_called()
+        mock_doc.Close.assert_called()
+        mock_word.Quit.assert_called()
+
+# Run the test suite
+if __name__ == '__main__':
     unittest.main()

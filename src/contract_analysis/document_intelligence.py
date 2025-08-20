@@ -7,6 +7,12 @@ class DocumentIntelligence:
                  di_model_id: str, document_pdf_path: str):
         """
         Initializes the Document Intelligence client with credentials and configuration.
+
+        Args:
+            credential (AzureKeyCredential): Azure credential for authentication.
+            di_endpoint (str): Endpoint for the Document Intelligence service.
+            di_model_id (str): Custom model ID for field extraction.
+            document_pdf_path (str): Path to the PDF document to analyze.
         """
         self.credential = credential
         self.di_endpoint = di_endpoint
@@ -21,6 +27,9 @@ class DocumentIntelligence:
     def init_field_dict(self, fields_list: List[str]):
         """
         Initializes dictionaries for field values and confidence scores.
+
+        Args:
+            fields_list (List[str]): List of expected field names to extract.
         """
         self.field_dict = {field: None for field in fields_list}
         self.field_confidence_dict = {field: 0.0 for field in fields_list}
@@ -28,6 +37,8 @@ class DocumentIntelligence:
     def init_document_analysis_client(self):
         """
         Initializes the Azure Document Analysis client.
+
+        This client is used to perform layout and field extraction operations.
         """
         self.document_analysis_client = DocumentAnalysisClient(
             endpoint=self.di_endpoint,
@@ -37,7 +48,8 @@ class DocumentIntelligence:
     def analyse_document_layout(self):
         """
         Analyzes the document layout using the prebuilt-layout model.
-        Extracts and stores text per page.
+
+        Extracts and stores text content per page from the document.
         """
         with open(self.document_pdf_path_to_use, "rb") as f:
             document = f.read()
@@ -47,13 +59,14 @@ class DocumentIntelligence:
 
         self.document_layout_pages.clear()
         for page in result.pages:
-            page_text = "\n".join([line.content for line in page.lines])
+            page_text = "".join([line.content for line in page.lines])
             self.document_layout_pages.append(page_text)
 
     def extract_document_fields(self):
         """
         Extracts structured fields using a custom model.
-        Populates field values and confidence scores.
+
+        Populates field values and confidence scores into dictionaries.
         """
         with open(self.document_pdf_path_to_use, "rb") as f:
             document = f.read()
