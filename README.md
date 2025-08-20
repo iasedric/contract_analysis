@@ -67,7 +67,7 @@ analyzer = ContractAnalysis(
 To run the test suite:
 
 ```bash
-python -m unittest discover -s tests -p "test_*.py"
+$env:PYTHONPATH="src"; python -m unittest discover -s tests -p "test_*.py"
 ```
 
 ## Project Structure
