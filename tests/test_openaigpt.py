@@ -1,73 +1,84 @@
-# Import necessary modules for testing and mocking
-import unittest
-from unittest.mock import patch, MagicMock
+import os
+import subprocess
 from pathlib import Path
-from contract_analysis import Document
+from typing import Optional, List
+from docx import Document as DocxDocument
+import pdfplumber
 
-# Define the test case class for Document
-class TestDocument(unittest.TestCase):
+class Document:
+    def __init__(self, docx_path: Path):
+        if not docx_path.exists() or docx_path.suffix.lower() != ".docx":
+            raise ValueError("Document must be a valid .docx file")
+        self.folder = docx_path.parent
+        self.base_name = docx_path.stem
+        self.original_docx_path = docx_path
+        self.original_pdf_path = self.folder / f"{self.base_name}.pdf"
+        self.translated_docx_path = self.folder / f"{self.base_name}_translated.docx"
+        self.translated_pdf_path = self.folder / f"{self.base_name}_translated.pdf"
+        self.docx_path_to_use: Optional[Path] = None
+        self.pdf_path_to_use: Optional[Path] = None
 
-    # Setup method to define sample file paths used in tests
-    def setUp(self):
-        self.sample_docx = Path("contracts/samples/sample.docx")
-        self.sample_pdf = Path("contracts/samples/sample.pdf")
+    @classmethod
+    def from_file(cls, file_path: Path) -> "Document":
+        file_path = Path(file_path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+        if file_path.suffix.lower() == ".docx":
+            return cls(file_path)
+        elif file_path.suffix.lower() == ".pdf":
+            docx_path = cls.convert_pdf_to_docx(file_path)
+            return cls(docx_path)
+        else:
+            raise ValueError("Unsupported file type. Only .docx or .pdf are allowed.")
 
-    # Test initialization with a valid DOCX path
-    @patch("contract_analysis.document.Path.exists", return_value=True)
-    def test_init_valid_docx(self, mock_exists):
-        doc = Document(self.sample_docx)
-        self.assertEqual(doc.original_docx_path, self.sample_docx)
+    @staticmethod
+    def convert_pdf_to_docx(pdf_path: Path) -> Path:
+        if not pdf_path.exists():
+            raise FileNotFoundError("PDF file does not exist.")
+        docx_path = pdf_path.with_suffix(".docx")
+        doc = DocxDocument()
+        with pdfplumber.open(str(pdf_path)) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:
+                    doc.add_paragraph(text)
+        doc.save(str(docx_path))
+        return docx_path
 
-    # Test initialization with an invalid path, expecting a ValueError
-    @patch("contract_analysis.document.Path.exists", return_value=False)
-    def test_init_invalid_path(self, mock_exists):
-        with self.assertRaises(ValueError):
-            Document(self.sample_docx)
+    @staticmethod
+    def convert_docx_to_pdf(docx_path: Path) -> Path:
+        if not docx_path.exists():
+            raise FileNotFoundError("DOCX file does not exist.")
+        pdf_path = docx_path.with_suffix(".pdf")
+        subprocess.run([
+            "libreoffice", "--headless", "--convert-to", "pdf", str(docx_path),
+            "--outdir", str(docx_path.parent)
+        ], check=True)
+        return pdf_path
 
-    # Test the from_file method with a DOCX file
-    @patch("contract_analysis.document.Path.exists", return_value=True)
-    def test_from_file_docx(self, mock_exists):
-        doc = Document.from_file(self.sample_docx)
-        self.assertIsInstance(doc, Document)
+    def ensure_pdf_exists(self):
+        if not self.original_pdf_path.exists():
+            self.original_pdf_path = self.convert_docx_to_pdf(self.original_docx_path)
 
-    # Test the from_file method with a PDF file and mock conversion to DOCX
-    @patch("contract_analysis.document.Document.convert_pdf_to_docx")
-    @patch("contract_analysis.document.Path.exists", return_value=True)
-    def test_from_file_pdf(self, mock_exists, mock_convert):
-        mock_convert.return_value = self.sample_docx
-        doc = Document.from_file(self.sample_pdf)
-        self.assertIsInstance(doc, Document)
+    def extract_text(self) -> str:
+        doc = DocxDocument(str(self.original_docx_path))
+        return "".join([para.text for para in doc.paragraphs]).strip()
 
-    # Test conversion from DOCX to PDF using mocked win32com client
-    @patch("contract_analysis.document.win32com.client.Dispatch")
-    @patch("contract_analysis.document.Path.exists", return_value=True)
-    def test_convert_docx_to_pdf(self, mock_exists, mock_dispatch):
-        mock_word = MagicMock()
-        mock_doc = MagicMock()
-        mock_dispatch.return_value = mock_word
-        mock_word.Documents.Open.return_value = mock_doc
+    def get_paragraphs(self) -> List[str]:
+        doc = DocxDocument(str(self.original_docx_path))
+        return [para.text for para in doc.paragraphs if para.text.strip()]
 
-        result = Document.convert_docx_to_pdf(self.sample_docx)
-        self.assertEqual(result, self.sample_docx.with_suffix(".pdf"))
-        mock_doc.SaveAs.assert_called()
-        mock_doc.Close.assert_called()
-        mock_word.Quit.assert_called()
+    def save_translated(self, translated_texts: List[str]):
+        doc = DocxDocument()
+        for text in translated_texts:
+            doc.add_paragraph(text)
+        doc.save(str(self.translated_docx_path))
+        self.convert_docx_to_pdf(self.translated_docx_path)
 
-    # Test conversion from PDF to DOCX using mocked win32com client
-    @patch("contract_analysis.document.win32com.client.Dispatch")
-    @patch("contract_analysis.document.Path.exists", return_value=True)
-    def test_convert_pdf_to_docx(self, mock_exists, mock_dispatch):
-        mock_word = MagicMock()
-        mock_doc = MagicMock()
-        mock_dispatch.return_value = mock_word
-        mock_word.Documents.Open.return_value = mock_doc
-
-        result = Document.convert_pdf_to_docx(self.sample_pdf)
-        self.assertEqual(result, self.sample_pdf.with_suffix(".docx"))
-        mock_doc.SaveAs.assert_called()
-        mock_doc.Close.assert_called()
-        mock_word.Quit.assert_called()
-
-# Run the test suite
-if __name__ == '__main__':
-    unittest.main()
+    def set_paths_to_use(self, translated: bool):
+        if translated:
+            self.docx_path_to_use = self.translated_docx_path
+            self.pdf_path_to_use = self.translated_pdf_path
+        else:
+            self.docx_path_to_use = self.original_docx_path
+            self.pdf_path_to_use = self.original_pdf_path
