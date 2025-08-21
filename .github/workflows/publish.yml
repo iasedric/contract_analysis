@@ -45,4 +45,5 @@ jobs:
       uses: pypa/gh-action-pypi-publish@v1.8.11
       with:
         repository-url: https://upload.pypi.org/legacy/
-        packages_dir: dist
+        packages-dir: dist
+        verify-metadata: true
