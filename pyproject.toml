@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = []  # unittest is built-in, so no external dependency needed
+test = []
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]

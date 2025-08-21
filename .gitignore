@@ -23,3 +23,6 @@ Thumbs.db
 # Configuration secrets
 configuration/config.yaml
 contracts/*
+
+#other
+script.py
