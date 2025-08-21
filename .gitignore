@@ -23,4 +23,3 @@ Thumbs.db
 # Configuration secrets
 configuration/config.yaml
 contracts/*
-tests/*
