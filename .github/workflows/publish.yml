@@ -25,7 +25,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install .[test]
-        pip install build
+        pip install build wheel
 
     - name: Run tests
       run: PYTHONPATH=src python -m unittest discover -s tests -p "test_*.py"
@@ -33,7 +33,16 @@ jobs:
     - name: Build package
       run: python -m build
 
+    - name: List dist contents
+      run: ls -l dist
+
+    - name: Inspect wheel metadata
+      run: |
+        python -m wheel unpack dist/*.whl -d unpacked
+        cat unpacked/*/*.dist-info/METADATA
+
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@v1.8.11
       with:
         repository-url: https://upload.pypi.org/legacy/
+        packages_dir: dist
