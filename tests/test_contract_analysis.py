@@ -1,11 +1,12 @@
 import platform  # ✅ Added for OS check
-
+import sys
 # Import necessary modules for testing and mocking
 import unittest
 from unittest.mock import MagicMock, patch
 
 # Import the ContractAnalysis class to be tested
-from contract_analysis import ContractAnalysis
+if sys.platform == "win32":
+    from contract_analysis import ContractAnalysis
 
 # ✅ This decorator ensures the test class runs only on Windows
 @unittest.skipUnless(platform.system() == "Windows", "This test suite runs only on Windows")

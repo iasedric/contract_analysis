@@ -3,12 +3,16 @@ import unittest
 import requests
 from enum import Enum
 from azure.core.credentials import TokenCredential
-from contract_analysis.document import Document
+
+
+if sys.platform == "win32":
+    from contract_analysis.document import Document
+
 
 class TranslationAction(Enum):
     TRANSLATE = "translate"
     DETECT = "detect"
-    
+
 # Skip the entire test suite if not on Windows
 @unittest.skipUnless(sys.platform == "win32", "Requires Windows")
 class Translation:

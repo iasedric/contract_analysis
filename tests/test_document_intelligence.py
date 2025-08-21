@@ -2,7 +2,9 @@ import platform  # ✅ Added for OS check
 import unittest
 from unittest.mock import patch, MagicMock, mock_open
 from azure.core.credentials import AzureKeyCredential
-from contract_analysis import DocumentIntelligence
+import sys
+if sys.platform == "win32":
+    from contract_analysis import DocumentIntelligence
 import yaml
 
 # ✅ This decorator ensures the test class runs only on Windows
