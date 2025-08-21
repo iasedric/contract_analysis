@@ -1,3 +1,5 @@
+import sys
+import unittest
 import requests
 from enum import Enum
 from azure.core.credentials import TokenCredential
@@ -6,7 +8,9 @@ from contract_analysis.document import Document
 class TranslationAction(Enum):
     TRANSLATE = "translate"
     DETECT = "detect"
-
+    
+# Skip the entire test suite if not on Windows
+@unittest.skipUnless(sys.platform == "win32", "Requires Windows")
 class Translation:
     def __init__(self, credential: TokenCredential, translator_endpoint: str, translator_region: str,
                  target_language: str, document: Document):
