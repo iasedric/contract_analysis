@@ -1,6 +1,6 @@
 [project]
 name = "contract-analysis"
-version = "0.1.1"
+version = "0.1.2"
 description = "A Python library for analyzing legal contracts using Azure services."
 authors = [
     { name = "Iaroslav Sedrichev", email = "iasedric@microsoft.com" }
